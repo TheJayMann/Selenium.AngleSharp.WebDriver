@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using AngleSharp;
 
 namespace Selenium.AngleSharp.WebDriver {
-    public class AngleSharpDriver : IWebDriver {
+    public partial class AngleSharpDriver : IWebDriver {
 
         IBrowsingContext _RootContext;
 
@@ -42,16 +42,14 @@ namespace Selenium.AngleSharp.WebDriver {
             _RootContext.Current?.Close();
         }
 
+        // FindElement and FindElements are already implemented by the By class by assuming
+        // an object is provided implementing various IFind* interfaces.
+        public IWebElement FindElement(By by) => by.FindElement(this);
+
+        public ReadOnlyCollection<IWebElement> FindElements(By by) => by.FindElements(this);
+
         // The following WebDriver interfaces have not yet been defined,
         // thus, the following methods cannot yet be implemented.
-        public IWebElement FindElement(By by) {
-            throw new NotImplementedException();
-        }
-
-        public ReadOnlyCollection<IWebElement> FindElements(By by) {
-            throw new NotImplementedException();
-        }
-
         public IOptions Manage() {
             throw new NotImplementedException();
         }
