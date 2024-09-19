@@ -48,13 +48,11 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public ReadOnlyCollection<IWebElement> FindElements(By by) => by.FindElements(this);
 
+        public INavigation Navigate() => new AngleSharpNavigation(_RootContext);
+
         // The following WebDriver interfaces have not yet been defined,
         // thus, the following methods cannot yet be implemented.
         public IOptions Manage() {
-            throw new NotImplementedException();
-        }
-
-        public INavigation Navigate() {
             throw new NotImplementedException();
         }
 
