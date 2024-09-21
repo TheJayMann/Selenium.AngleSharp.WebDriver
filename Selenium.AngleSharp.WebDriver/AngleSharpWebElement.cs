@@ -11,7 +11,16 @@ using System.Runtime.CompilerServices;
 namespace Selenium.AngleSharp.WebDriver {
     partial class AngleSharpWebElement : IWebElement {
 
-        public static IWebElement Create(IElement element) => new AngleSharpWebElement(element);
+        public static IWebElement Create(INode node) =>
+            node is null ? throw new NoSuchElementException() :
+            node is IElement element ? new AngleSharpWebElement(element) :
+            throw new InvalidSelectorException()
+        ;
+
+        public static IWebElement Create(IElement element) => 
+            element is null ? throw new NoSuchElementException() :
+            new AngleSharpWebElement(element)
+        ;
 
         public static IWebElement GetElement(IEnumerable<IElement> elements) => Create(elements?.FirstOrDefault());
 
@@ -19,6 +28,14 @@ namespace Selenium.AngleSharp.WebDriver {
             new ReadOnlyCollectionBuilder<IWebElement>(elements?.Select(Create) ?? new IWebElement[0])
             .ToReadOnlyCollection()
         ;
+
+        public static ReadOnlyCollection<IWebElement> GetElements(IEnumerable<INode> nodes) =>
+            new ReadOnlyCollectionBuilder<IWebElement>(nodes?.Select(Create) ?? new IWebElement[0])
+            .ToReadOnlyCollection()
+        ;
+
+
+
 
 
 
@@ -30,7 +47,7 @@ namespace Selenium.AngleSharp.WebDriver {
         }
         public string TagName => _Element.TagName;
 
-        public string Text => _Element.TextContent;
+        public string Text => _Element.GetInnerText().Trim();
 
         public bool Enabled => _Element.IsEnabled();
 

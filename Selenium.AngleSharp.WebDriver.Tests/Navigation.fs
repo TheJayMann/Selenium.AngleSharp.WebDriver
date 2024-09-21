@@ -20,6 +20,7 @@ let ``Create driver``() =
       .WithRequesters()
       .WithHistory()
   )
+
 [<Fact>]
 let ``Back and forward should work when no pages are loaded`` () =
   use driver = ``Create driver``()

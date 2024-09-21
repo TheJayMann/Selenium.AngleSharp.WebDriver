@@ -1,23 +1,21 @@
-﻿using System;
+﻿using AngleSharp.Dom;
+using AngleSharp.XPath;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Internal;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using AngleSharp.Dom;
-using OpenQA.Selenium;
-using OpenQA.Selenium.Internal;
 
 namespace Selenium.AngleSharp.WebDriver {
-    partial class AngleSharpDriver : IFindsById, IFindsByLinkText, IFindsByName, IFindsByClassName, IFindsByPartialLinkText, IFindsByTagName, IFindsByCssSelector {
+    partial class AngleSharpDriver : IFindsById, IFindsByLinkText, IFindsByName, IFindsByClassName, IFindsByPartialLinkText, IFindsByTagName, IFindsByCssSelector, IFindsByXPath {
         #region By ID
 
         public IWebElement FindElementById(string id) => AngleSharpWebElement.Create(_RootContext.Active?.GetElementById(id));
 
-        public ReadOnlyCollection<IWebElement> FindElementsById(string id) =>
-            new ReadOnlyCollectionBuilder<IWebElement>(1) {
-                FindElementById(id)
-            }
-            .ToReadOnlyCollection()
+        public ReadOnlyCollection<IWebElement> FindElementsById(string id) => 
+            // While AngleSharp only returns a single value for given id, even if multiple exist, Selenium still
+            // expects to retrieve all elements sharing the ID.
+            AngleSharpWebElement.GetElements(_RootContext.Active?.DocumentElement.QuerySelectorAll($"[id='{id}']"))
         ;
 
         #endregion
@@ -27,7 +25,7 @@ namespace Selenium.AngleSharp.WebDriver {
         private IEnumerable<IElement> ByLinkText(string linkText) =>
             _RootContext.Active
             ?.GetElementsByTagName("a")
-            ?.Where(e => e.TextContent == linkText)
+            ?.Where(e => e.GetInnerText() == linkText)
         ;
 
         public IWebElement FindElementByLinkText(string linkText) => AngleSharpWebElement.GetElement(ByLinkText(linkText));
@@ -56,7 +54,7 @@ namespace Selenium.AngleSharp.WebDriver {
         private IEnumerable<IElement> ByPartialLinkText(string partialLinkText) =>
             _RootContext.Active
             ?.GetElementsByTagName("a")
-            ?.Where(e => e.TextContent.Contains(partialLinkText))
+            ?.Where(e => e.GetInnerText().Contains(partialLinkText))
         ;
 
         public IWebElement FindElementByPartialLinkText(string partialLinkText) => AngleSharpWebElement.GetElement(ByPartialLinkText(partialLinkText));
@@ -76,6 +74,18 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public IWebElement FindElementByCssSelector(string cssSelector) => AngleSharpWebElement.Create(_RootContext.Active?.QuerySelector(cssSelector));
         public ReadOnlyCollection<IWebElement> FindElementsByCssSelector(string cssSelector) => AngleSharpWebElement.GetElements(_RootContext.Active?.QuerySelectorAll(cssSelector));
+
+        #endregion
+
+        #region By XPath selector
+
+        public IWebElement FindElementByXPath(string xpath) =>
+            AngleSharpWebElement.Create(_RootContext.Active?.DocumentElement.SelectSingleNode(xpath))
+        ;
+
+        public ReadOnlyCollection<IWebElement> FindElementsByXPath(string xpath) =>
+            AngleSharpWebElement.GetElements(_RootContext.Active?.DocumentElement.SelectNodes(xpath))
+        ;
 
         #endregion
 
