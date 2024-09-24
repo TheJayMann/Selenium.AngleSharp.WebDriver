@@ -1,6 +1,7 @@
 module ``Navigation tests``
 
 open System
+open System.Threading.Tasks
 open Xunit
 open AngleSharp
 open Selenium.AngleSharp.WebDriver
@@ -83,3 +84,72 @@ let ``GoToUrl should maintain history`` () =
 
   navigation.Back() 
   Assert.Equal(mainPageTitle, driver.Title)
+
+[<Fact>]
+let ``Back and forward should work when no pages are loaded async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate()
+  do! navigation.BackAsync()
+  do! navigation.ForwardAsync()
+}
+
+[<Fact>]
+let ``Back and forward should navigate through history async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate();
+  
+  driver.Url <- mainPageUri.ToString()
+  driver.Url <- page1Uri.ToString()
+
+  do! navigation.BackAsync()
+  Assert.Equal(mainPageTitle, driver.Title)
+
+  do! navigation.ForwardAsync()
+  Assert.Equal(page1Title, driver.Title)
+}
+
+[<Fact>]
+let ``GoToUrl should throw argument null exception when given null uri async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate()
+
+  do! Assert.ThrowsAsync<ArgumentNullException>(fun () -> navigation.GoToUrlAsync(null : Uri)) :> Task
+  do! Assert.ThrowsAsync<ArgumentNullException>(fun () -> navigation.GoToUrlAsync(null : string)) :> Task
+}
+
+[<Fact>]
+let ``GoToUrl should load page using string uri async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate()
+
+  do! navigation.GoToUrlAsync(mainPageUri.ToString())
+  Assert.Equal(mainPageTitle, driver.Title)
+
+  do! navigation.GoToUrlAsync(page1Uri.ToString())
+  Assert.Equal(page1Title, driver.Title)
+}
+
+[<Fact>]
+let ``GoToUrl should load page using uri async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate()
+
+  do! navigation.GoToUrlAsync(mainPageUri)
+  Assert.Equal(mainPageTitle, driver.Title)
+
+  do! navigation.GoToUrlAsync(page1Uri)
+  Assert.Equal(page1Title, driver.Title)
+}
+
+[<Fact>]
+let ``GoToUrl should maintain history async`` () = task {
+  use driver = ``Create driver``()
+  let navigation = driver.Navigate()
+
+  do! navigation.GoToUrlAsync(mainPageUri)
+  do! navigation.GoToUrlAsync(page1Uri)
+  Assert.Equal(page1Title, driver.Title)
+
+  do! navigation.BackAsync() 
+  Assert.Equal(mainPageTitle, driver.Title)
+}

@@ -1,16 +1,15 @@
-﻿using OpenQA.Selenium;
+﻿using AngleSharp;
+using AngleSharp.Dom;
+using AngleSharp.XPath;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Internal;
 using System;
 using System.Collections.ObjectModel;
-using AngleSharp;
+using System.Linq;
 
 namespace Selenium.AngleSharp.WebDriver {
-    public partial class AngleSharpDriver : IWebDriver {
-
-        IBrowsingContext _RootContext;
-
-        public AngleSharpDriver(IConfiguration cfg = null) {
-            _RootContext = BrowsingContext.New(cfg);
-        }
+    public sealed partial class AngleSharpDriver(IConfiguration cfg = null) : IWebDriver, IFindsElement {
+        private readonly IBrowsingContext _RootContext = BrowsingContext.New(cfg);
 
         public string Url {
             get => _RootContext.Active?.Url;
@@ -30,10 +29,10 @@ namespace Selenium.AngleSharp.WebDriver {
         // between top level windows and embedded documents.
         // Thus, currently, only the current window name can
         // be retrieved
-        public ReadOnlyCollection<string> WindowHandles => 
-            _RootContext.Current?.Name is string name 
-            ? new ReadOnlyCollection<string>(new [] { name })
-            : new ReadOnlyCollection<string>(new string[0])
+        public ReadOnlyCollection<string> WindowHandles =>
+            _RootContext.Current?.Name is string name
+            ? new ReadOnlyCollection<string>([name])
+            : ReadOnlyCollection<string>.Empty
         ;
 
         public void Quit() => _RootContext.Current?.Close();
@@ -52,20 +51,25 @@ namespace Selenium.AngleSharp.WebDriver {
 
         // The following WebDriver interfaces have not yet been defined,
         // thus, the following methods cannot yet be implemented.
-        public IOptions Manage() {
-            throw new NotImplementedException();
-        }
+        public IOptions Manage() => throw new NotImplementedException();
 
 
-        public ITargetLocator SwitchTo() {
-            throw new NotImplementedException();
-        }
+        public ITargetLocator SwitchTo() => throw new NotImplementedException();
 
-        #region IDisposable Support
+        public IWebElement FindElement(string mechanism, string value) => FindElements(mechanism, value) is [var element, ..] ? element : throw new NoSuchElementException();
+
+        public ReadOnlyCollection<IWebElement> FindElements(string mechanism, string value) =>
+            mechanism switch {
+                "css selector" => AngleSharpWebElement.GetElements(_RootContext.Active?.QuerySelectorAll(value)),
+                "link text" => AngleSharpWebElement.GetElements(_RootContext.Active?.GetElementsByTagName("a")?.Where(e => e.GetInnerText() == value)),
+                "partial link text" => AngleSharpWebElement.GetElements(_RootContext.Active?.GetElementsByTagName("a")?.Where(e => e.GetInnerText().Contains(value))),
+                "tag name" => AngleSharpWebElement.GetElements(_RootContext.Active?.GetElementsByTagName(value)),
+                "xpath" => AngleSharpWebElement.GetElements(_RootContext.Active?.DocumentElement.SelectNodes(value)),
+                _ => throw new NotImplementedException()
+            }
+        ;
 
         public void Dispose() { if (_RootContext is IDisposable disposable) disposable.Dispose(); }
-
-        #endregion
     }
 }
 

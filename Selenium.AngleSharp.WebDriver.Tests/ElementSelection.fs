@@ -3,6 +3,7 @@
 open System
 open Xunit
 open AngleSharp
+open AngleSharp.Css
 open OpenQA.Selenium
 open Selenium.AngleSharp.WebDriver
 
@@ -21,6 +22,7 @@ let ``Create driver``() =
       .WithRequesters()
       .WithHistory()
       .WithCss()
+      .WithRenderDevice(DefaultRenderDevice(ViewPortWidth=1280, ViewPortHeight=720))
   )
 
 
@@ -53,7 +55,7 @@ let ``Find element by XPath selector`` () =
   use driver = ``Create driver``()
   driver.Url <- simpleTestPageUri.ToString()
 
-  let element = driver.FindElement(By.XPath("/body/p[1]")) 
+  let element = driver.FindElement(By.XPath("/html/body/p[1]")) 
   Assert.Equal("A single line of text", element.Text)
 
 [<Fact>]

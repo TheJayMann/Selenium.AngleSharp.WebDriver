@@ -1,6 +1,8 @@
 ﻿using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
+using AngleSharp.XPath;
 using OpenQA.Selenium;
+using OpenQA.Selenium.Internal;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,7 +11,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace Selenium.AngleSharp.WebDriver {
-    partial class AngleSharpWebElement : IWebElement {
+    partial class AngleSharpWebElement(IElement element) : IWebElement, IFindsElement {
 
         public static IWebElement Create(INode node) =>
             node is null ? throw new NoSuchElementException() :
@@ -22,45 +24,38 @@ namespace Selenium.AngleSharp.WebDriver {
             new AngleSharpWebElement(element)
         ;
 
-        public static IWebElement GetElement(IEnumerable<IElement> elements) => Create(elements?.FirstOrDefault());
-
         public static ReadOnlyCollection<IWebElement> GetElements(IEnumerable<IElement> elements) =>
-            new ReadOnlyCollectionBuilder<IWebElement>(elements?.Select(Create) ?? new IWebElement[0])
+            new ReadOnlyCollectionBuilder<IWebElement>(elements?.Select(Create) ?? [])
             .ToReadOnlyCollection()
         ;
 
         public static ReadOnlyCollection<IWebElement> GetElements(IEnumerable<INode> nodes) =>
-            new ReadOnlyCollectionBuilder<IWebElement>(nodes?.Select(Create) ?? new IWebElement[0])
+            new ReadOnlyCollectionBuilder<IWebElement>(nodes?.Select(Create) ?? [])
             .ToReadOnlyCollection()
         ;
 
+        public string GetDomAttribute(string attributeName) => element.GetAttribute(attributeName);
 
+        public string GetDomProperty(string propertyName) => throw new NotImplementedException();
 
+        public ISearchContext GetShadowRoot() => new AngleSharpShadowRoot(element.ShadowRoot);
 
+        public string TagName => element.TagName;
 
+        public string Text => element.GetInnerText().Trim();
 
+        public bool Enabled => element.IsEnabled();
 
-        private readonly IElement _Element;
-
-        public AngleSharpWebElement(IElement element) {
-            _Element = element;
-        }
-        public string TagName => _Element.TagName;
-
-        public string Text => _Element.GetInnerText().Trim();
-
-        public bool Enabled => _Element.IsEnabled();
-
-        public bool Selected => _Element.IsFocused;
+        public bool Selected => element.IsFocused;
 
         public Point Location => throw new NotImplementedException("Rendering not supported");
 
         public Size Size => throw new NotImplementedException("Rendering not supported");
 
-        public bool Displayed =>_Element is IHtmlElement htmlElement && !htmlElement.IsHidden;
+        public bool Displayed =>element is IHtmlElement htmlElement && !htmlElement.IsHidden;
 
         public void Clear() {
-            switch (_Element) {
+            switch (element) {
                 case IHtmlInputElement inputElement: inputElement.Value = null; break;
                 case IHtmlTextAreaElement textAreaElement: textAreaElement.Value = null; break;
             }
@@ -71,14 +66,14 @@ namespace Selenium.AngleSharp.WebDriver {
             // an event handler needs to be added to specific element types which will perform navigation
             // on a click event, or AngleSharp needs to include a navigation service which will allow
             // clicking on specific elements to cause navigation if enabled.
-            if (_Element is IHtmlElement htmlElement) htmlElement.DoClick();
+            if (element is IHtmlElement htmlElement) htmlElement.DoClick();
         }
 
         public IWebElement FindElement(By by) => by.FindElement(this);
 
         public ReadOnlyCollection<IWebElement> FindElements(By by) => by.FindElements(this);
 
-        public string GetAttribute(string attributeName) => _Element.GetAttribute(attributeName);
+        public string GetAttribute(string attributeName) => element.GetAttribute(attributeName);
 
         public string GetCssValue(string propertyName) {
             // TODO: Find out how AngleSharp applies CSS properties to elements
@@ -102,5 +97,21 @@ namespace Selenium.AngleSharp.WebDriver {
             // until a form is found, and submit that form. Otherwise, do nothing.
             throw new NotImplementedException();
         }
+
+        public IWebElement FindElement(string mechanism, string value) =>
+            FindElements(mechanism, value) is [var element, ..] ? element
+            : throw new NoSuchElementException()
+        ;
+
+        public ReadOnlyCollection<IWebElement> FindElements(string mechanism, string value) =>
+            mechanism switch {
+                "css selector" => GetElements(element.QuerySelectorAll(value)),
+                "link text" => GetElements(element.GetElementsByTagName("a")?.Where(e => e.GetInnerText() == value)),
+                "partial link text" => GetElements(element.GetElementsByTagName("a")?.Where(e => e.GetInnerText().Contains(value))),
+                "tag name" => GetElements(element.GetElementsByTagName(value)),
+                "xpath" => GetElements(element.SelectNodes(value)),
+                _ => throw new NotImplementedException()
+            }
+        ;
     }
 }

@@ -3,6 +3,7 @@
 open System
 open Xunit
 open AngleSharp
+open AngleSharp.Css
 open OpenQA.Selenium
 open Selenium.AngleSharp.WebDriver
 
@@ -21,6 +22,7 @@ let ``Create driver``() =
       .WithRequesters()
       .WithHistory()
       .WithCss()
+      .WithRenderDevice(DefaultRenderDevice(ViewPortWidth=1280, ViewPortHeight=720))
   )
 
 [<Fact>]
