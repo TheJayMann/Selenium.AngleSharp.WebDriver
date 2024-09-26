@@ -1,4 +1,5 @@
-﻿using AngleSharp.Dom;
+﻿using AngleSharp.Attributes;
+using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using AngleSharp.XPath;
 using OpenQA.Selenium;
@@ -8,10 +9,25 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Selenium.AngleSharp.WebDriver {
     partial class AngleSharpWebElement(IElement element) : IWebElement, IFindsElement {
+
+        private static Dictionary<string, Func<object, object>> GetDomProperties(IElement element) {
+            var props = new Dictionary<string, Func<object, object>>();
+            foreach (var @interface in element.GetType().GetInterfaces()) {
+                foreach (var prop in @interface.GetProperties()) {
+                    foreach (var propName in prop.GetCustomAttributes<DomNameAttribute>().Select(n => n.OfficialName)) {
+                        props[propName] = prop.GetValue;
+                    }
+                }
+            }
+            return props;
+        }
+
+        private readonly Dictionary<string, Func<object, object>> _DomProperties = GetDomProperties(element);
 
         public static IWebElement Create(INode node) =>
             node is null ? throw new NoSuchElementException() :
@@ -19,7 +35,7 @@ namespace Selenium.AngleSharp.WebDriver {
             throw new InvalidSelectorException()
         ;
 
-        public static IWebElement Create(IElement element) => 
+        public static IWebElement Create(IElement element) =>
             element is null ? throw new NoSuchElementException() :
             new AngleSharpWebElement(element)
         ;
@@ -36,7 +52,11 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public string GetDomAttribute(string attributeName) => element.GetAttribute(attributeName);
 
-        public string GetDomProperty(string propertyName) => throw new NotImplementedException();
+        public string GetDomProperty(string propertyName) =>
+            _DomProperties.TryGetValue(propertyName, out var prop)
+            ? prop(element)?.ToString()
+            : null
+        ;
 
         public ISearchContext GetShadowRoot() => new AngleSharpShadowRoot(element.ShadowRoot);
 
@@ -52,12 +72,15 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public Size Size => throw new NotImplementedException("Rendering not supported");
 
-        public bool Displayed =>element is IHtmlElement htmlElement && !htmlElement.IsHidden;
+        public bool Displayed => element is IHtmlElement htmlElement && !htmlElement.IsHidden;
 
         public void Clear() {
-            switch (element) {
-                case IHtmlInputElement inputElement: inputElement.Value = null; break;
-                case IHtmlTextAreaElement textAreaElement: textAreaElement.Value = null; break;
+            if (element.IsDisabled() || element.IsReadOnly()) throw new InvalidElementStateException();
+            if (element is IHtmlInputElement) {
+                element.RemoveAttribute(AttributeNames.Value);
+            }
+            else if (element is IHtmlTextAreaElement or IHtmlElement { IsContentEditable: true }) {
+                element.SetInnerText(string.Empty);
             }
         }
 
@@ -73,15 +96,10 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public ReadOnlyCollection<IWebElement> FindElements(By by) => by.FindElements(this);
 
-        public string GetAttribute(string attributeName) => element.GetAttribute(attributeName);
+        public string GetAttribute(string attributeName) => GetDomProperty(attributeName) ?? GetDomAttribute(attributeName);
 
         public string GetCssValue(string propertyName) {
             // TODO: Find out how AngleSharp applies CSS properties to elements
-            throw new NotImplementedException();
-        }
-
-        public string GetProperty(string propertyName) {
-            // TODO: Find out how AngleSharp applies javascript properties to elements
             throw new NotImplementedException();
         }
 
