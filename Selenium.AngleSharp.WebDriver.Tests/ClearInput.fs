@@ -1,14 +1,15 @@
 ﻿module ``Test for clearing input``
 
 open System
+open System.IO
 open Xunit
 open AngleSharp
 open AngleSharp.Css
 open OpenQA.Selenium
 open Selenium.AngleSharp.WebDriver
 
-let currentDirectoryUri = Uri Environment.CurrentDirectory
-let pageDirectoryUri = Uri(currentDirectoryUri, "net8.0/pages/")
+let currentDirectoryUri = Path.Combine(Environment.CurrentDirectory, ".") |> Uri
+let pageDirectoryUri = Uri(currentDirectoryUri, "pages/")
 let inputsPageUri = Uri(pageDirectoryUri, "inputs.html")
 let readOnlyPageUri = Uri(pageDirectoryUri, "readOnlyPage.html")
  

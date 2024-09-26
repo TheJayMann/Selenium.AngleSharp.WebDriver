@@ -1,13 +1,14 @@
 ﻿module ``Tests for finding child elements``
 
 open System
+open System.IO
 open Xunit
 open AngleSharp
 open OpenQA.Selenium
 open Selenium.AngleSharp.WebDriver
 
-let currentDirectoryUri = Uri Environment.CurrentDirectory
-let pageDirectoryUri = Uri(currentDirectoryUri, "net8.0/pages/")
+let currentDirectoryUri = Path.Combine(Environment.CurrentDirectory, ".") |> Uri
+let pageDirectoryUri = Uri(currentDirectoryUri, "pages/")
 let nestedPageUri = Uri(pageDirectoryUri, "nestedElements.html")
 let simpleTestPageUri = Uri(pageDirectoryUri, "simpleTest.html")
 

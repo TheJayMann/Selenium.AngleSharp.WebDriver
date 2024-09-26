@@ -1,15 +1,17 @@
 module ``Navigation tests``
 
 open System
+open System.IO
 open System.Threading.Tasks
 open Xunit
 open AngleSharp
 open Selenium.AngleSharp.WebDriver
 
 
-let currentDirectoryUri = Uri Environment.CurrentDirectory
-let mainPageUri = Uri(currentDirectoryUri, "net8.0/pages/main.html")
-let page1Uri = Uri(currentDirectoryUri, "net8.0/pages/page1.html")
+let currentDirectoryUri = Path.Combine(Environment.CurrentDirectory, ".") |> Uri
+let pageDirectoryUri = Uri(currentDirectoryUri, "pages/")
+let mainPageUri = Uri(pageDirectoryUri, "main.html")
+let page1Uri = Uri(pageDirectoryUri, "page1.html")
 
 let [<Literal>] mainPageTitle = "Main Page"
 let [<Literal>] page1Title = "Page 1"
