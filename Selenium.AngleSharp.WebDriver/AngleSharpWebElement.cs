@@ -1,9 +1,12 @@
 ﻿using AngleSharp.Attributes;
+using AngleSharp.Browser;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
+using AngleSharp.Html.Dom.Events;
 using AngleSharp.XPath;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Internal;
+using Selenium.AngleSharp.WebDriver.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,6 +17,13 @@ using System.Runtime.CompilerServices;
 
 namespace Selenium.AngleSharp.WebDriver {
     partial class AngleSharpWebElement(IElement element) : IWebElement, IFindsElement {
+        private readonly IElement element = element;
+
+        internal static IElement GetAngleSharpElement(IWebElement element) =>
+            element is AngleSharpWebElement angleSharpElement
+            ? angleSharpElement.element
+            : throw new InvalidOperationException("Provided IWebElement is not an AngleSharp web element.")
+        ;
 
         private static Dictionary<string, Func<object, object>> GetDomProperties(IElement element) {
             var props = new Dictionary<string, Func<object, object>>();
@@ -66,7 +76,7 @@ namespace Selenium.AngleSharp.WebDriver {
 
         public bool Enabled => element.IsEnabled();
 
-        public bool Selected => element.IsFocused;
+        public bool Selected => element.IsChecked();
 
         public Point Location => throw new NotImplementedException("Rendering not supported");
 
@@ -84,12 +94,45 @@ namespace Selenium.AngleSharp.WebDriver {
             }
         }
 
+        private static bool IsClickedCancelled<TElement>(TElement target) where TElement : IEventTarget, INode =>
+            target.Owner is Document document
+            &&
+            AsyncHelper.RunSync(() => document.Loop.EnqueueAsync(_ => target.Fire<MouseEvent>(m =>
+                m.Init(EventNames.Click, bubbles: true, cancelable: true, document.DefaultView, 0, 0, 0, 0, 0, ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, MouseButton.Primary, target)
+            )))
+        ;
+
         public void Click() {
-            // TODO: Either this method needs to perform navigation if an anchor or button is clicked,
-            // an event handler needs to be added to specific element types which will perform navigation
-            // on a click event, or AngleSharp needs to include a navigation service which will allow
-            // clicking on specific elements to cause navigation if enabled.
-            if (element is IHtmlElement htmlElement) htmlElement.DoClick();
+            if (element is IHtmlLabelElement label && label.Control is not null and var control) {
+                if (IsClickedCancelled(element)) return;
+                new AngleSharpWebElement(control).Click();
+            }
+            else if (element is IHtmlInputElement { Type: "checkbox" } checkbox) {
+                if (IsClickedCancelled(element)) return;
+                checkbox.IsChecked = !checkbox.IsChecked;
+            }
+            else if (element is IHtmlMenuItemElement { Type: "checkbox" } menuItemCheckBox) {
+                if (IsClickedCancelled(element)) return;
+                menuItemCheckBox.IsChecked = !menuItemCheckBox.IsChecked;
+            }
+            else if (element is IHtmlInputElement { Type: "radio" } radio) {
+                if (IsClickedCancelled(element)) return;
+                radio.IsChecked = true;
+            }
+            else if (element is IHtmlInputElement { Type: "radio" } menuItemRadio) {
+                if (IsClickedCancelled(element)) return;
+                menuItemRadio.IsChecked = true;
+            }
+            else if (element is IHtmlOptionElement option) {
+                if (IsClickedCancelled(element)) return;
+                option.IsSelected = true;
+            }
+            else for (var htmlElement = element as IHtmlElement; htmlElement is not null; htmlElement = htmlElement.ParentElement as IHtmlElement) {
+                if (htmlElement is IHtmlButtonElement or IUrlUtilities) {
+                    htmlElement.DoClick();
+                    break;
+                }
+            }
         }
 
         public IWebElement FindElement(By by) => by.FindElement(this);
